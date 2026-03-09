@@ -1,0 +1,43 @@
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  steamId       String    @unique
+  name          String?
+  avatar        String?
+  email         String?
+  emailNotify   Boolean   @default(false)
+  notifyDay     String    @default("monday")
+  notifyHour    Int       @default(9)
+  createdAt     DateTime  @default(now())
+
+  pinnedGames   PinnedGame[]
+  sessions      Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PinnedGame {
+  id      String @id @default(cuid())
+  userId  String
+  appId   String
+  note    String @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, appId])
+}
