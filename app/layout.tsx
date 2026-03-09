@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
-import SessionProvider from "@/components/SessionProvider";
 
 const geist = Geist({ subsets: ["latin"] });
 
@@ -13,9 +12,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de">
-      <body className={`${geist.className} antialiased`}>
-        <SessionProvider>{children}</SessionProvider>
-      </body>
+      <body className={`${geist.className} antialiased`}>{children}</body>
     </html>
   );
 }

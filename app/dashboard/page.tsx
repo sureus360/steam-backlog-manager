@@ -1,32 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
-  Gamepad2,
-  LogOut,
-  Search,
-  Pin,
-  Trophy,
-  RefreshCw,
-  ChevronDown,
+  Gamepad2, LogOut, Search, Pin, Trophy, RefreshCw, ChevronDown,
 } from "lucide-react";
 import GameCard from "@/components/GameCard";
 import NotificationSettings from "@/components/NotificationSettings";
 import type { SteamGame } from "@/lib/steam";
+import type { SessionData } from "@/lib/session";
 
 type SortMode = "playtime" | "name" | "recent";
-
-interface PinnedGameData {
-  appId: string;
-  note: string;
-}
+interface PinnedGameData { appId: string; note: string; }
 
 export default function DashboardPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
-
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [games, setGames] = useState<SteamGame[]>([]);
   const [pins, setPins] = useState<PinnedGameData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,9 +27,16 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
+  // Load session
   useEffect(() => {
-    if (status === "unauthenticated") router.push("/");
-  }, [status, router]);
+    fetch("/api/auth/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data) { router.push("/"); return; }
+        setSession(data);
+      })
+      .finally(() => setAuthLoading(false));
+  }, [router]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -56,13 +53,17 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (status === "authenticated") loadData();
-  }, [status, loadData]);
+    if (session) loadData();
+  }, [session, loadData]);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/");
+  }
 
   async function togglePin(appId: number) {
     const appIdStr = String(appId);
     const isPinned = pins.some((p) => p.appId === appIdStr);
-
     if (isPinned) {
       await fetch("/api/pins", {
         method: "DELETE",
@@ -85,14 +86,12 @@ export default function DashboardPage() {
 
   const pinnedIds = new Set(pins.map((p) => p.appId));
 
-  // Sort
   const sorted = [...games].sort((a, b) => {
     if (sortMode === "name") return a.name.localeCompare(b.name);
     if (sortMode === "recent") return (b.playtime_2weeks ?? 0) - (a.playtime_2weeks ?? 0);
     return b.playtime_forever - a.playtime_forever;
   });
 
-  // Filter
   const filtered = sorted.filter((g) => {
     if (showPinnedOnly && !pinnedIds.has(String(g.appid))) return false;
     if (search && !g.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -101,10 +100,9 @@ export default function DashboardPage() {
 
   const displayed = filtered.slice(0, page * PAGE_SIZE);
   const hasMore = displayed.length < filtered.length;
-
   const pinnedGames = games.filter((g) => pinnedIds.has(String(g.appid)));
 
-  if (status === "loading") {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-[#1b2838] flex items-center justify-center">
         <RefreshCw size={32} className="text-blue-400 animate-spin" />
@@ -121,21 +119,14 @@ export default function DashboardPage() {
             <Gamepad2 size={22} className="text-blue-400" />
             <span className="font-bold text-slate-100">Backlog Manager</span>
           </div>
-
           <div className="flex items-center gap-3">
-            {session?.user?.image && (
+            {session?.avatar && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={session.user.image}
-                alt="Avatar"
-                className="w-8 h-8 rounded-full border border-slate-600"
-              />
+              <img src={session.avatar} alt="Avatar" className="w-8 h-8 rounded-full border border-slate-600" />
             )}
-            <span className="text-sm text-slate-300 hidden sm:block">
-              {session?.user?.name}
-            </span>
+            <span className="text-sm text-slate-300 hidden sm:block">{session?.name}</span>
             <button
-              onClick={() => signOut()}
+              onClick={logout}
               className="text-slate-500 hover:text-slate-300 transition-colors p-1.5 rounded-md hover:bg-slate-700"
               title="Abmelden"
             >
@@ -146,7 +137,7 @@ export default function DashboardPage() {
       </header>
 
       <div className="max-w-6xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Sidebar */}
+        {/* Sidebar */}
         <aside className="lg:col-span-1 space-y-4">
           {/* Stats */}
           <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-700/50">
@@ -167,7 +158,7 @@ export default function DashboardPage() {
                 <p className="text-2xl font-bold text-slate-100">
                   {Math.floor(games.reduce((s, g) => s + g.playtime_forever, 0) / 60).toLocaleString()}h
                 </p>
-                <p className="text-xs text-slate-500">Gespielte Stunden gesamt</p>
+                <p className="text-xs text-slate-500">Spielstunden gesamt</p>
               </div>
             </div>
           </div>
@@ -176,23 +167,20 @@ export default function DashboardPage() {
           {pinnedGames.length > 0 && (
             <div className="bg-slate-800/60 rounded-xl p-4 border border-blue-500/20">
               <h2 className="text-sm font-medium text-blue-400 mb-3 flex items-center gap-1.5">
-                <Pin size={14} />
-                Angeheftete Spiele
+                <Pin size={14} /> Angeheftete Spiele
               </h2>
               <div className="space-y-2">
                 {pinnedGames.map((g) => (
-                  <div key={g.appid} className="flex items-center gap-2 text-sm">
+                  <div key={g.appid} className="flex items-center gap-2">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`https://cdn.cloudflare.steamstatic.com/steam/apps/${g.appid}/header.jpg`}
                       alt={g.name}
                       className="w-14 h-8 object-cover rounded"
                     />
-                    <div className="flex-1 min-w-0">
+                    <div className="min-w-0">
                       <p className="text-slate-200 truncate text-xs">{g.name}</p>
-                      <p className="text-slate-500 text-xs">
-                        {Math.floor(g.playtime_forever / 60)}h gespielt
-                      </p>
+                      <p className="text-slate-500 text-xs">{Math.floor(g.playtime_forever / 60)}h</p>
                     </div>
                   </div>
                 ))}
@@ -200,23 +188,20 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Notifications */}
+          {/* Notifications Toggle */}
           <button
             onClick={() => setShowSettings(!showSettings)}
             className="w-full flex items-center justify-between bg-slate-800/60 rounded-xl p-4 border border-slate-700/50 hover:border-blue-500/40 transition-colors"
           >
             <span className="text-sm font-medium text-slate-300">Benachrichtigungen</span>
-            <ChevronDown
-              size={16}
-              className={`text-slate-500 transition-transform ${showSettings ? "rotate-180" : ""}`}
-            />
+            <ChevronDown size={16} className={`text-slate-500 transition-transform ${showSettings ? "rotate-180" : ""}`} />
           </button>
-          {showSettings && session?.user?.steamId && (
-            <NotificationSettings steamId={session.user.steamId} />
+          {showSettings && session?.steamId && (
+            <NotificationSettings steamId={session.steamId} />
           )}
         </aside>
 
-        {/* Right: Game List */}
+        {/* Game List */}
         <main className="lg:col-span-2 space-y-4">
           {/* Controls */}
           <div className="flex flex-col sm:flex-row gap-2">
@@ -247,8 +232,7 @@ export default function DashboardPage() {
                   : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"
               }`}
             >
-              <Pin size={13} />
-              Gepinnt
+              <Pin size={13} /> Gepinnt
             </button>
             <button
               onClick={loadData}
@@ -259,13 +243,11 @@ export default function DashboardPage() {
             </button>
           </div>
 
-          {/* Game Count */}
           <p className="text-xs text-slate-500">
-            {filtered.length} Spiele{search ? ` fur "${search}"` : ""} |{" "}
+            {filtered.length} Spiele{search ? ` für "${search}"` : ""} |{" "}
             {Math.floor(filtered.reduce((s, g) => s + g.playtime_forever, 0) / 60).toLocaleString()}h
           </p>
 
-          {/* Games */}
           {loading ? (
             <div className="flex justify-center py-20">
               <RefreshCw size={28} className="text-blue-400 animate-spin" />
@@ -274,7 +256,7 @@ export default function DashboardPage() {
             <div className="text-center py-20 text-slate-500">Keine Spiele gefunden</div>
           ) : (
             <div className="space-y-1.5">
-              {displayed.map((game, idx) => (
+              {displayed.map((game) => (
                 <GameCard
                   key={game.appid}
                   game={game}
@@ -286,7 +268,6 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Load More */}
           {hasMore && (
             <button
               onClick={() => setPage((p) => p + 1)}

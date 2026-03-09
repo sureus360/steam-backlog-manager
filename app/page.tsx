@@ -4,7 +4,7 @@ import { Gamepad2, Star, Bell, Users } from "lucide-react";
 
 export default async function HomePage() {
   const session = await auth();
-  if (session?.user) redirect("/dashboard");
+  if (session) redirect("/dashboard");
 
   const NEXTAUTH_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   const steamLoginUrl =
@@ -49,7 +49,7 @@ export default async function HomePage() {
 
       {/* Login Button - direkte URL zu Steam OpenID */}
       <a
-        href={`/api/auth/signin/steam`}
+        href="/api/steam/login"
         className="flex items-center gap-3 bg-[#1b2838] hover:bg-[#213347] border border-slate-600 hover:border-blue-500 text-white font-semibold py-4 px-8 rounded-xl transition-all text-lg shadow-lg hover:shadow-blue-500/20 hover:scale-[1.02] active:scale-[0.98]"
       >
         <svg viewBox="0 0 24 24" className="w-7 h-7 fill-white" xmlns="http://www.w3.org/2000/svg">
