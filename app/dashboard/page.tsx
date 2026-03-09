@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Gamepad2, LogOut, Search, Pin, Trophy, RefreshCw, ChevronDown,
+  Gamepad2, LogOut, Search, Pin, Trophy, RefreshCw, ChevronDown, Users, Bell,
 } from "lucide-react";
 import GameCard from "@/components/GameCard";
 import NotificationSettings from "@/components/NotificationSettings";
+import FriendsLeaderboard from "@/components/FriendsLeaderboard";
 import type { SteamGame } from "@/lib/steam";
 import type { SessionData } from "@/lib/session";
 
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [sortMode, setSortMode] = useState<SortMode>("playtime");
   const [showPinnedOnly, setShowPinnedOnly] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
@@ -193,11 +195,27 @@ export default function DashboardPage() {
             onClick={() => setShowSettings(!showSettings)}
             className="w-full flex items-center justify-between bg-slate-800/60 rounded-xl p-4 border border-slate-700/50 hover:border-blue-500/40 transition-colors"
           >
-            <span className="text-sm font-medium text-slate-300">Benachrichtigungen</span>
+            <span className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Bell size={14} className="text-blue-400" />Benachrichtigungen
+            </span>
             <ChevronDown size={16} className={`text-slate-500 transition-transform ${showSettings ? "rotate-180" : ""}`} />
           </button>
           {showSettings && session?.steamId && (
             <NotificationSettings steamId={session.steamId} />
+          )}
+
+          {/* Friends Toggle */}
+          <button
+            onClick={() => setShowFriends(!showFriends)}
+            className="w-full flex items-center justify-between bg-slate-800/60 rounded-xl p-4 border border-slate-700/50 hover:border-blue-500/40 transition-colors"
+          >
+            <span className="text-sm font-medium text-slate-300 flex items-center gap-2">
+              <Users size={14} className="text-blue-400" />Freundes-Rangliste
+            </span>
+            <ChevronDown size={16} className={`text-slate-500 transition-transform ${showFriends ? "rotate-180" : ""}`} />
+          </button>
+          {showFriends && session?.name && (
+            <FriendsLeaderboard myName={session.name} />
           )}
         </aside>
 

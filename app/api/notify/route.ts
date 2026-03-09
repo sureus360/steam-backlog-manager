@@ -4,6 +4,7 @@ import { getOwnedGames } from "@/lib/steam";
 import { sendBacklogDigest } from "@/lib/mailer";
 
 // Called by a cron job - protected by NOTIFY_SECRET token
+// Example: GET /api/notify?token=YOUR_SECRET
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   if (token !== process.env.NOTIFY_SECRET) {
@@ -15,13 +16,17 @@ export async function GET(req: NextRequest) {
   const currentDay = days[now.getDay()];
   const currentHour = now.getHours();
 
-  const users = await prisma.user.findMany({
-    where: { emailNotify: true, email: { not: null }, notifyDay: currentDay, notifyHour: currentHour },
-    include: { pinnedGames: true },
+  // Find all schedules that match current day+hour
+  const schedules = await prisma.notificationSchedule.findMany({
+    where: { day: currentDay, hour: currentHour },
+    include: {
+      user: { include: { pinnedGames: true } },
+    },
   });
 
   const results = [];
-  for (const user of users) {
+  for (const schedule of schedules) {
+    const user = schedule.user;
     if (!user.email || !user.steamId) continue;
     try {
       const games = await getOwnedGames(user.steamId);
@@ -32,7 +37,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ processed: users.length, results });
+  return NextResponse.json({ processed: schedules.length, results });
 }
 
 // Manual test send for current user

@@ -1,5 +1,5 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -7,18 +7,16 @@ datasource db {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  steamId       String    @unique
-  name          String?
-  avatar        String?
-  email         String?
-  emailNotify   Boolean   @default(false)
-  notifyDay     String    @default("monday")
-  notifyHour    Int       @default(9)
-  createdAt     DateTime  @default(now())
+  id          String   @id @default(cuid())
+  steamId     String   @unique
+  name        String?
+  avatar      String?
+  email       String?
+  createdAt   DateTime @default(now())
 
-  pinnedGames   PinnedGame[]
-  sessions      Session[]
+  pinnedGames           PinnedGame[]
+  sessions              Session[]
+  notificationSchedules NotificationSchedule[]
 }
 
 model Session {
@@ -32,12 +30,23 @@ model Session {
 }
 
 model PinnedGame {
-  id      String @id @default(cuid())
-  userId  String
-  appId   String
-  note    String @default("")
+  id     String @id @default(cuid())
+  userId String
+  appId  String
+  note   String @default("")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, appId])
+}
+
+model NotificationSchedule {
+  id      String @id @default(cuid())
+  userId  String
+  day     String // monday, tuesday, ...
+  hour    Int    // 0-23
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day, hour])
 }
